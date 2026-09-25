@@ -7,8 +7,7 @@ pluginManagement {
                 .inputStream()
                 .use { properties.load(it) }
 
-            val flutterSdkPath =
-                properties.getProperty("flutter.sdk")
+            val flutterSdkPath = properties.getProperty("flutter.sdk")
 
             require(flutterSdkPath != null) {
                 "flutter.sdk not set in local.properties"
@@ -17,9 +16,7 @@ pluginManagement {
             flutterSdkPath
         }
 
-    includeBuild(
-        "$flutterSdkPath/packages/flutter_tools/gradle"
-    )
+    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
         google()
@@ -37,16 +34,20 @@ plugins {
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(
-        RepositoriesMode.PREFER_SETTINGS
-    )
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
 
     repositories {
         google()
         mavenCentral()
 
-        // Flutter engine artifacts
+        // Flutter
         maven("https://storage.googleapis.com/download.flutter.io")
+
+        // ZEGO
+        maven("https://maven.zego.im")
+
+        // GitHub / JitPack
+        maven("https://jitpack.io")
     }
 }
 
@@ -54,7 +55,6 @@ rootProject.name = "calling_app"
 
 include(":app")
 
-// Floating module
 if (file("floating").exists()) {
     include(":floating")
 }
