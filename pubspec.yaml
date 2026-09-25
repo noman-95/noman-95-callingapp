@@ -13,10 +13,10 @@ dependencies:
 
   cupertino_icons: 1.0.9
 
-  # Zego Call Kit
+  shared_preferences: ^2.5.3
+
   zego_uikit_prebuilt_call: 4.24.4
 
-  # Firebase
   firebase_core: 4.15.0
   firebase_auth: 6.7.0
   cloud_firestore: 6.10.0
