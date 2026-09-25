@@ -1,12 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:zego_uikit/zego_uikit.dart';
 import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
+
 import 'package:zego_zim/zego_zim.dart';
 
 void main() {
@@ -39,7 +36,7 @@ class CallingApp extends StatelessWidget {
 }
 
 // =============================================================
-// USER MODEL
+// USERS
 // =============================================================
 
 class AppUser {
@@ -157,7 +154,9 @@ class _UserSelectionPageState
               size: 80,
               color: Color(0xFF6750A4),
             ),
+
             const SizedBox(height: 20),
+
             const Text(
               'Select your user',
               style: TextStyle(
@@ -165,7 +164,9 @@ class _UserSelectionPageState
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             const SizedBox(height: 10),
+
             Text(
               'Har mobile par different user select karein.',
               textAlign: TextAlign.center,
@@ -173,9 +174,13 @@ class _UserSelectionPageState
                 color: Colors.grey.shade600,
               ),
             ),
+
             const SizedBox(height: 35),
+
             userButton(user1),
+
             const SizedBox(height: 15),
+
             userButton(user2),
           ],
         ),
@@ -230,7 +235,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   // ===========================================================
-  // ZEGOCLOUD
+  // ZEGO
   // ===========================================================
 
   final int appID = 1876473876;
@@ -238,54 +243,42 @@ class _HomePageState extends State<HomePage> {
   final String appSign =
       'c5ce62449ba439e5d5fbc9ec5fdfdaaaf503393bd6bcb2fed2533fa47023505d';
 
-  // ===========================================================
-  // STATE
-  // ===========================================================
-
   bool isReady = false;
   bool isLoading = true;
-
-  bool isChatReady = false;
+  bool zimReady = false;
 
   AppUser get currentUser =>
       widget.currentUser;
 
   AppUser get targetUser {
-    if (currentUser.id == user1.id) {
-      return user2;
-    }
-
-    return user1;
+    return currentUser.id == user1.id
+        ? user2
+        : user1;
   }
 
   // ===========================================================
-  // CHAT
+  // ZIM
   // ===========================================================
 
-  final List<ChatMessage> messages = [];
-
-  final TextEditingController messageController =
-      TextEditingController();
-
-  StreamSubscription? _dummySubscription;
-
-  // ===========================================================
-  // INIT
-  // ===========================================================
+  ZIM? zim;
 
   @override
   void initState() {
     super.initState();
 
-    initializeZego();
-    initializeChat();
+    initializeServices();
+  }
+
+  Future<void> initializeServices() async {
+    await initializeZegoCall();
+    await initializeZimChat();
   }
 
   // ===========================================================
-  // ZEGOCLOUD CALLING
+  // ZEGO CALL INITIALIZATION
   // ===========================================================
 
-  Future<void> initializeZego() async {
+  Future<void> initializeZegoCall() async {
     try {
       final service =
           ZegoUIKitPrebuiltCallInvitationService();
@@ -312,7 +305,7 @@ class _HomePageState extends State<HomePage> {
       );
     } catch (e) {
       debugPrint(
-        'ZEGO CALL INITIALIZATION ERROR: $e',
+        'ZEGO CALL ERROR: $e',
       );
 
       if (!mounted) return;
@@ -323,7 +316,82 @@ class _HomePageState extends State<HomePage> {
       });
 
       showMessage(
-        'Calling service failed:\n$e',
+        'Calling service error:\n$e',
+      );
+    }
+  }
+
+  // ===========================================================
+  // ZIM CHAT INITIALIZATION
+  // ===========================================================
+
+  Future<void> initializeZimChat() async {
+    try {
+      final config = ZIMAppConfig(
+        appID: appID,
+        appSign: appSign,
+      );
+
+      ZIM.create(config);
+
+      zim = ZIM.getInstance();
+
+      if (zim == null) {
+        throw Exception(
+          'ZIM instance create nahi hui.',
+        );
+      }
+
+      ZIMEventHandler.onPeerMessageReceived =
+          (
+            ZIM zim,
+            List<ZIMMessage> messageList,
+            ZIMMessageReceivedInfo info,
+            String fromUserID,
+          ) {
+            debugPrint(
+              'MESSAGE RECEIVED FROM: $fromUserID',
+            );
+          };
+
+      final loginConfig = ZIMLoginConfig();
+
+      loginConfig.userName =
+          currentUser.name;
+
+      // AppSign authentication:
+      // token empty rahega.
+      loginConfig.token = '';
+
+      loginConfig.isOfflineLogin = false;
+
+      await zim!.login(
+        currentUser.id,
+        loginConfig,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        zimReady = true;
+      });
+
+      debugPrint(
+        'ZIM CHAT READY: ${currentUser.id}',
+      );
+    } catch (e) {
+      debugPrint(
+        'ZIM CHAT ERROR: $e',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        zimReady = false;
+      });
+
+      showMessage(
+        'Chat service error:\n$e',
       );
     }
   }
@@ -341,11 +409,6 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      debugPrint(
-        'AUDIO CALL: '
-        '${currentUser.id} -> ${targetUser.id}',
-      );
-
       final result =
           await ZegoUIKitPrebuiltCallInvitationService()
               .send(
@@ -390,11 +453,6 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      debugPrint(
-        'VIDEO CALL: '
-        '${currentUser.id} -> ${targetUser.id}',
-      );
-
       final result =
           await ZegoUIKitPrebuiltCallInvitationService()
               .send(
@@ -427,218 +485,26 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ===========================================================
-  // ZIM CHAT INITIALIZATION
+  // CHAT PAGE
   // ===========================================================
 
-  Future<void> initializeChat() async {
-    try {
-      // Create ZIM instance.
-      final appConfig = ZIMAppConfig();
-
-      appConfig.appID = appID;
-      appConfig.appSign = appSign;
-
-      ZIM.create(appConfig);
-
-      final zim = ZIM.getInstance();
-
-      if (zim == null) {
-        throw Exception(
-          'ZIM instance create nahi hui.',
-        );
-      }
-
-      // -------------------------------------------------------
-      // RECEIVE PEER MESSAGES
-      // -------------------------------------------------------
-
-      ZIMEventHandler.onPeerMessageReceived =
-          (
-        ZIM zim,
-        List<ZIMMessage> messageList,
-        ZIMMessageReceivedInfo info,
-        String fromUserID,
-      ) {
-        for (final message in messageList) {
-          if (message is ZIMTextMessage) {
-            if (!mounted) return;
-
-            setState(() {
-              messages.add(
-                ChatMessage(
-                  text: message.message,
-                  fromMe: false,
-                  senderID: fromUserID,
-                ),
-              );
-            });
-          }
-        }
-      };
-
-      // -------------------------------------------------------
-      // LOGIN
-      // -------------------------------------------------------
-
-      final loginConfig = ZIMLoginConfig();
-
-      loginConfig.userName =
-          currentUser.name;
-
-      loginConfig.token = '';
-
-      loginConfig.isOfflineLogin = false;
-
-      await zim.login(
-        currentUser.id,
-        loginConfig,
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        isChatReady = true;
-      });
-
-      debugPrint(
-        'ZIM CHAT READY: ${currentUser.id}',
-      );
-    } on PlatformException catch (e) {
-      debugPrint(
-        'ZIM LOGIN ERROR: ${e.code} ${e.message}',
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        isChatReady = false;
-      });
-
-      showMessage(
-        'Chat login failed:\n${e.message}',
-      );
-    } catch (e) {
-      debugPrint(
-        'ZIM ERROR: $e',
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        isChatReady = false;
-      });
-
-      showMessage(
-        'Chat initialization failed:\n$e',
-      );
-    }
-  }
-
-  // ===========================================================
-  // SEND TEXT MESSAGE
-  // ===========================================================
-
-  Future<void> sendTextMessage() async {
-    final text =
-        messageController.text.trim();
-
-    if (text.isEmpty) {
-      return;
-    }
-
-    if (!isChatReady) {
+  void openChat() {
+    if (!zimReady || zim == null) {
       showMessage(
         'Chat service abhi ready nahi hai.',
       );
       return;
     }
 
-    if (currentUser.id == targetUser.id) {
-      showMessage(
-        'Apne aap ko message nahi bhej sakte.',
-      );
-      return;
-    }
-
-    try {
-      final zim = ZIM.getInstance();
-
-      if (zim == null) {
-        showMessage(
-          'Chat service available nahi hai.',
-        );
-        return;
-      }
-
-      final zimMessage =
-          ZIMTextMessage(
-        message: text,
-      );
-
-      final sendConfig =
-          ZIMMessageSendConfig();
-
-      sendConfig.priority =
-          ZIMMessagePriority.low;
-
-      await zim.sendMessage(
-        zimMessage,
-        targetUser.id,
-        ZIMConversationType.peer,
-        sendConfig,
-      );
-
-      if (!mounted) return;
-
-      setState(() {
-        messages.add(
-          ChatMessage(
-            text: text,
-            fromMe: true,
-            senderID: currentUser.id,
-          ),
-        );
-      });
-
-      messageController.clear();
-    } on PlatformException catch (e) {
-      debugPrint(
-        'SEND MESSAGE ERROR: '
-        '${e.code} ${e.message}',
-      );
-
-      if (mounted) {
-        showMessage(
-          'Message send nahi hua:\n${e.message}',
-        );
-      }
-    } catch (e) {
-      debugPrint(
-        'SEND MESSAGE ERROR: $e',
-      );
-
-      if (mounted) {
-        showMessage(
-          'Message send nahi hua:\n$e',
-        );
-      }
-    }
-  }
-
-  // ===========================================================
-  // SHOW MESSAGE
-  // ===========================================================
-
-  void showMessage(String message) {
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatPage(
+          zim: zim!,
+          currentUser: currentUser,
+          targetUser: targetUser,
         ),
-      );
+      ),
+    );
   }
 
   // ===========================================================
@@ -652,7 +518,9 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {}
 
     try {
-      ZIM.getInstance()?.logout();
+      zim?.logout();
+      ZIMEventHandler.onPeerMessageReceived =
+          null;
     } catch (_) {}
 
     final prefs =
@@ -674,23 +542,35 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ===========================================================
+  // MESSAGE
+  // ===========================================================
+
+  void showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
+  }
+
+  // ===========================================================
   // DISPOSE
   // ===========================================================
 
   @override
   void dispose() {
-    messageController.dispose();
-
-    _dummySubscription?.cancel();
-
     try {
       ZegoUIKitPrebuiltCallInvitationService()
           .uninit();
     } catch (_) {}
 
     try {
-      ZIM.getInstance()?.logout();
-      ZIM.getInstance()?.destroy();
+      zim?.logout();
+      ZIMEventHandler.onPeerMessageReceived =
+          null;
     } catch (_) {}
 
     super.dispose();
@@ -706,13 +586,24 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+
         title: const Text(
           'Calling App',
           style: TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
+
         actions: [
+          IconButton(
+            tooltip: 'Chat',
+            onPressed:
+                zimReady ? openChat : null,
+            icon: const Icon(
+              Icons.chat_rounded,
+            ),
+          ),
+
           IconButton(
             tooltip: 'Switch User',
             onPressed: switchUser,
@@ -724,21 +615,31 @@ class _HomePageState extends State<HomePage> {
       ),
 
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+        child: Padding(
+          padding:
+              const EdgeInsets.all(20),
+
           child: Column(
             children: [
-              const SizedBox(height: 10),
+              const SizedBox(
+                height: 20,
+              ),
 
               // =================================================
               // CURRENT USER CARD
               // =================================================
 
               Container(
-                width: double.infinity,
+                width:
+                    double.infinity,
+
                 padding:
-                    const EdgeInsets.all(25),
-                decoration: BoxDecoration(
+                    const EdgeInsets.all(
+                  25,
+                ),
+
+                decoration:
+                    BoxDecoration(
                   gradient:
                       const LinearGradient(
                     colors: [
@@ -755,6 +656,7 @@ class _HomePageState extends State<HomePage> {
                     28,
                   ),
                 ),
+
                 child: Column(
                   children: [
                     const CircleAvatar(
@@ -777,7 +679,8 @@ class _HomePageState extends State<HomePage> {
                       currentUser.name,
                       style:
                           const TextStyle(
-                        color: Colors.white,
+                        color:
+                            Colors.white,
                         fontSize: 22,
                         fontWeight:
                             FontWeight.bold,
@@ -802,63 +705,38 @@ class _HomePageState extends State<HomePage> {
                       height: 12,
                     ),
 
-                    Container(
-                      padding:
-                          const EdgeInsets
-                              .symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration:
-                          BoxDecoration(
-                        color: isReady
-                            ? Colors.green
-                                .withOpacity(
-                                0.2,
-                              )
-                            : Colors.orange
-                                .withOpacity(
-                                0.2,
-                              ),
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                          20,
+                    Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment
+                              .center,
+                      children: [
+                        statusChip(
+                          'Call',
+                          isReady,
                         ),
-                      ),
-                      child: Text(
-                        isLoading
-                            ? 'Connecting...'
-                            : isReady
-                                ? 'Online'
-                                : 'Offline',
-                        style:
-                            TextStyle(
-                          color: isReady
-                              ? Colors.white
-                              : Colors
-                                  .orangeAccent,
-                          fontSize: 12,
-                          fontWeight:
-                              FontWeight.bold,
+
+                        const SizedBox(
+                          width: 8,
                         ),
-                      ),
+
+                        statusChip(
+                          'Chat',
+                          zimReady,
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
 
               const SizedBox(
-                height: 25,
+                height: 30,
               ),
-
-              // =================================================
-              // CONTACT
-              // =================================================
 
               Align(
                 alignment:
                     Alignment.centerLeft,
+
                 child: Text(
                   'Contacts',
                   style:
@@ -877,14 +755,20 @@ class _HomePageState extends State<HomePage> {
                 height: 14,
               ),
 
+              // =================================================
+              // TARGET USER CARD
+              // =================================================
+
               Container(
                 padding:
                     const EdgeInsets.all(
                   16,
                 ),
+
                 decoration:
                     BoxDecoration(
-                  color: Colors.white,
+                  color:
+                      Colors.white,
                   borderRadius:
                       BorderRadius.circular(
                     22,
@@ -904,6 +788,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ],
                 ),
+
                 child: Column(
                   children: [
                     Row(
@@ -928,7 +813,8 @@ class _HomePageState extends State<HomePage> {
                         ),
 
                         Expanded(
-                          child: Column(
+                          child:
+                              Column(
                             crossAxisAlignment:
                                 CrossAxisAlignment
                                     .start,
@@ -952,522 +838,3 @@ class _HomePageState extends State<HomePage> {
 
                               Text(
                                 targetUser
-                                    .id,
-                                style:
-                                    TextStyle(
-                                  color: Colors
-                                      .grey
-                                      .shade600,
-                                  fontSize:
-                                      13,
-                                ),
-                              ),
-
-                              const SizedBox(
-                                height: 5,
-                              ),
-
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons
-                                        .circle,
-                                    size: 9,
-                                    color:
-                                        isReady
-                                            ? Colors
-                                                .green
-                                            : Colors
-                                                .grey,
-                                  ),
-                                  const SizedBox(
-                                    width: 5,
-                                  ),
-                                  Text(
-                                    isReady
-                                        ? 'Available'
-                                        : 'Connecting...',
-                                    style:
-                                        TextStyle(
-                                      color:
-                                          isReady
-                                              ? Colors
-                                                  .green
-                                              : Colors
-                                                  .grey,
-                                      fontSize:
-                                          12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(
-                      height: 18,
-                    ),
-
-                    // =================================================
-                    // CALL BUTTONS
-                    // =================================================
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child:
-                              ElevatedButton
-                                  .icon(
-                            onPressed:
-                                isReady
-                                    ? makeAudioCall
-                                    : null,
-                            icon:
-                                const Icon(
-                              Icons.call,
-                            ),
-                            label:
-                                const Text(
-                              'Audio Call',
-                            ),
-                            style:
-                                ElevatedButton
-                                    .styleFrom(
-                              backgroundColor:
-                                  Colors.green,
-                              foregroundColor:
-                                  Colors.white,
-                              disabledBackgroundColor:
-                                  Colors
-                                      .grey
-                                      .shade300,
-                              padding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                vertical: 14,
-                              ),
-                              shape:
-                                  RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                  15,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 12,
-                        ),
-
-                        Expanded(
-                          child:
-                              ElevatedButton
-                                  .icon(
-                            onPressed:
-                                isReady
-                                    ? makeVideoCall
-                                    : null,
-                            icon:
-                                const Icon(
-                              Icons.videocam,
-                            ),
-                            label:
-                                const Text(
-                              'Video Call',
-                            ),
-                            style:
-                                ElevatedButton
-                                    .styleFrom(
-                              backgroundColor:
-                                  const Color(
-                                0xFF6750A4,
-                              ),
-                              foregroundColor:
-                                  Colors.white,
-                              disabledBackgroundColor:
-                                  Colors
-                                      .grey
-                                      .shade300,
-                              padding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                vertical: 14,
-                              ),
-                              shape:
-                                  RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                  15,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(
-                height: 25,
-              ),
-
-              // =================================================
-              // CHAT SECTION
-              // =================================================
-
-              Align(
-                alignment:
-                    Alignment.centerLeft,
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.chat_rounded,
-                      color:
-                          Color(0xFF6750A4),
-                    ),
-                    const SizedBox(
-                      width: 8,
-                    ),
-                    Text(
-                      'Messages',
-                      style:
-                          Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(
-                                fontWeight:
-                                    FontWeight
-                                        .bold,
-                              ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(
-                height: 12,
-              ),
-
-              Container(
-                width: double.infinity,
-                height: 330,
-                padding:
-                    const EdgeInsets.all(
-                  12,
-                ),
-                decoration:
-                    BoxDecoration(
-                  color: Colors.white,
-                  borderRadius:
-                      BorderRadius.circular(
-                    22,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black
-                          .withOpacity(
-                        0.05,
-                      ),
-                      blurRadius: 15,
-                      offset:
-                          const Offset(
-                        0,
-                        5,
-                      ),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // -------------------------------------------------
-                    // CHAT STATUS
-                    // -------------------------------------------------
-
-                    Align(
-                      alignment:
-                          Alignment.centerLeft,
-                      child: Container(
-                        padding:
-                            const EdgeInsets
-                                .symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration:
-                            BoxDecoration(
-                          color: isChatReady
-                              ? Colors.green
-                                  .withOpacity(
-                                  0.10,
-                                )
-                              : Colors.orange
-                                  .withOpacity(
-                                  0.10,
-                                ),
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                            20,
-                          ),
-                        ),
-                        child: Text(
-                          isChatReady
-                              ? 'Chat Online'
-                              : 'Chat Connecting...',
-                          style: TextStyle(
-                            color:
-                                isChatReady
-                                    ? Colors
-                                        .green
-                                    : Colors
-                                        .orange,
-                            fontSize: 12,
-                            fontWeight:
-                                FontWeight
-                                    .bold,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(
-                      height: 8,
-                    ),
-
-                    // -------------------------------------------------
-                    // MESSAGES
-                    // -------------------------------------------------
-
-                    Expanded(
-                      child: messages
-                              .isEmpty
-                          ? Center(
-                              child: Text(
-                                'Abhi koi message nahi.',
-                                style:
-                                    TextStyle(
-                                  color: Colors
-                                      .grey
-                                      .shade500,
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              padding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                horizontal:
-                                    4,
-                              ),
-                              itemCount:
-                                  messages
-                                      .length,
-                              itemBuilder:
-                                  (
-                                context,
-                                index,
-                              ) {
-                                final msg =
-                                    messages[
-                                        index];
-
-                                return Align(
-                                  alignment: msg
-                                          .fromMe
-                                      ? Alignment
-                                          .centerRight
-                                      : Alignment
-                                          .centerLeft,
-                                  child:
-                                      Container(
-                                    constraints:
-                                        const BoxConstraints(
-                                      maxWidth:
-                                          280,
-                                    ),
-                                    margin:
-                                        const EdgeInsets
-                                            .symmetric(
-                                      vertical:
-                                          4,
-                                    ),
-                                    padding:
-                                        const EdgeInsets
-                                            .symmetric(
-                                      horizontal:
-                                          14,
-                                      vertical:
-                                          10,
-                                    ),
-                                    decoration:
-                                        BoxDecoration(
-                                      color: msg
-                                              .fromMe
-                                          ? const Color(
-                                              0xFF6750A4,
-                                            )
-                                          : const Color(
-                                              0xFFE9E1FF,
-                                            ),
-                                      borderRadius:
-                                          BorderRadius
-                                              .circular(
-                                        16,
-                                      ),
-                                    ),
-                                    child:
-                                        Text(
-                                      msg.text,
-                                      style:
-                                          TextStyle(
-                                        color: msg
-                                                .fromMe
-                                            ? Colors
-                                                .white
-                                            : Colors
-                                                .black87,
-                                        fontSize:
-                                            15,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-
-                    const SizedBox(
-                      height: 8,
-                    ),
-
-                    // -------------------------------------------------
-                    // MESSAGE INPUT
-                    // -------------------------------------------------
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child:
-                              TextField(
-                            controller:
-                                messageController,
-                            textInputAction:
-                                TextInputAction
-                                    .send,
-                            onSubmitted:
-                                (_) =>
-                                    sendTextMessage(),
-                            decoration:
-                                InputDecoration(
-                              hintText:
-                                  'Message likhein...',
-                              filled: true,
-                              fillColor:
-                                  const Color(
-                                0xFFF4F2F8,
-                              ),
-                              contentPadding:
-                                  const EdgeInsets
-                                      .symmetric(
-                                horizontal:
-                                    16,
-                                vertical:
-                                    12,
-                              ),
-                              border:
-                                  OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                  25,
-                                ),
-                                borderSide:
-                                    BorderSide
-                                        .none,
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(
-                          width: 8,
-                        ),
-
-                        FloatingActionButton(
-                          mini: true,
-                          heroTag:
-                              'send_message',
-                          onPressed:
-                              sendTextMessage,
-                          backgroundColor:
-                              const Color(
-                            0xFF6750A4,
-                          ),
-                          foregroundColor:
-                              Colors.white,
-                          child:
-                              const Icon(
-                            Icons.send,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(
-                height: 18,
-              ),
-
-              Text(
-                isLoading
-                    ? 'Connecting to calling service...'
-                    : isReady
-                        ? '${currentUser.name} is ready'
-                        : 'Calling service failed',
-                style: TextStyle(
-                  color: isLoading
-                      ? Colors.orange
-                      : isReady
-                          ? Colors.green
-                          : Colors.red,
-                  fontSize: 13,
-                ),
-              ),
-
-              const SizedBox(
-                height: 15,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================
-// CHAT MESSAGE MODEL
-// =============================================================
-
-class ChatMessage {
-  final String text;
-  final bool fromMe;
-  final String senderID;
-
-  ChatMessage({
-    required this.text,
-    required this.fromMe,
-    required this.senderID,
-  });
-}
