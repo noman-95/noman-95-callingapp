@@ -5,8 +5,12 @@ import 'package:zego_uikit/zego_uikit.dart';
 import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 
+final GlobalKey<NavigatorState> navigatorKey =
+    GlobalKey<NavigatorState>();
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
   runApp(const CallingApp());
 }
 
@@ -17,14 +21,24 @@ class CallingApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+
+      // IMPORTANT:
+      // Zego incoming-call UI uses this navigator.
+      navigatorKey: navigatorKey,
+
       title: 'Calling App',
+
       theme: ThemeData(
         useMaterial3: true,
+
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF6750A4),
         ),
-        scaffoldBackgroundColor: const Color(0xFFF8F7FC),
+
+        scaffoldBackgroundColor:
+            const Color(0xFFF8F7FC),
       ),
+
       home: const UserSelectionPage(),
     );
   }
@@ -73,11 +87,13 @@ class _UserSelectionPageState
   @override
   void initState() {
     super.initState();
+
     checkSavedUser();
   }
 
   Future<void> checkSavedUser() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs =
+        await SharedPreferences.getInstance();
 
     final savedUserID =
         prefs.getString('selected_user_id');
@@ -86,17 +102,22 @@ class _UserSelectionPageState
 
     if (savedUserID == user1.id) {
       openHome(user1);
-    } else if (savedUserID == user2.id) {
-      openHome(user2);
-    } else {
-      setState(() {
-        loading = false;
-      });
+      return;
     }
+
+    if (savedUserID == user2.id) {
+      openHome(user2);
+      return;
+    }
+
+    setState(() {
+      loading = false;
+    });
   }
 
   Future<void> selectUser(AppUser user) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs =
+        await SharedPreferences.getInstance();
 
     await prefs.setString(
       'selected_user_id',
@@ -130,19 +151,22 @@ class _UserSelectionPageState
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: const Text(
           'Select User',
           style: TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
-        centerTitle: true,
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(24),
+
         child: Column(
           mainAxisAlignment:
               MainAxisAlignment.center,
+
           children: [
             const Icon(
               Icons.people_alt_rounded,
@@ -187,9 +211,14 @@ class _UserSelectionPageState
     return SizedBox(
       width: double.infinity,
       height: 58,
+
       child: ElevatedButton.icon(
         onPressed: () => selectUser(user),
-        icon: const Icon(Icons.person),
+
+        icon: const Icon(
+          Icons.person,
+        ),
+
         label: Text(
           user.name,
           style: const TextStyle(
@@ -197,11 +226,15 @@ class _UserSelectionPageState
             fontWeight: FontWeight.bold,
           ),
         ),
+
         style: ElevatedButton.styleFrom(
           backgroundColor:
               const Color(0xFF6750A4),
+
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
+
+          shape:
+              RoundedRectangleBorder(
             borderRadius:
                 BorderRadius.circular(16),
           ),
@@ -245,7 +278,8 @@ class _HomePageState extends State<HomePage> {
   bool isReady = false;
   bool isLoading = true;
 
-  AppUser get currentUser => widget.currentUser;
+  AppUser get currentUser =>
+      widget.currentUser;
 
   AppUser get targetUser {
     if (currentUser.id == user1.id) {
@@ -256,12 +290,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ===========================================================
-  // INIT
+  // INITIALIZE
   // ===========================================================
 
   @override
   void initState() {
     super.initState();
+
     initializeZego();
   }
 
@@ -274,11 +309,22 @@ class _HomePageState extends State<HomePage> {
       final service =
           ZegoUIKitPrebuiltCallInvitationService();
 
+      // IMPORTANT:
+      // This allows incoming-call UI to appear
+      // above the Flutter application.
+      service.setNavigatorKey(
+        navigatorKey,
+      );
+
       await service.init(
         appID: appID,
+
         appSign: appSign,
+
         userID: currentUser.id,
+
         userName: currentUser.name,
+
         plugins: [
           ZegoUIKitSignalingPlugin(),
         ],
@@ -306,12 +352,8 @@ class _HomePageState extends State<HomePage> {
         isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'ZEGOCLOUD initialization failed:\n$e',
-          ),
-        ),
+      showMessage(
+        'ZEGOCLOUD initialization failed:\n$e',
       );
     }
   }
@@ -325,12 +367,14 @@ class _HomePageState extends State<HomePage> {
       showMessage(
         'Calling service abhi ready nahi hai.',
       );
+
       return;
     }
 
     try {
       debugPrint(
-        'AUDIO CALL: ${currentUser.id} -> ${targetUser.id}',
+        'AUDIO CALL: '
+        '${currentUser.id} -> ${targetUser.id}',
       );
 
       final result =
@@ -342,7 +386,9 @@ class _HomePageState extends State<HomePage> {
             targetUser.name,
           ),
         ],
+
         isVideoCall: false,
+
         timeoutSeconds: 60,
       );
 
@@ -373,12 +419,14 @@ class _HomePageState extends State<HomePage> {
       showMessage(
         'Calling service abhi ready nahi hai.',
       );
+
       return;
     }
 
     try {
       debugPrint(
-        'VIDEO CALL: ${currentUser.id} -> ${targetUser.id}',
+        'VIDEO CALL: '
+        '${currentUser.id} -> ${targetUser.id}',
       );
 
       final result =
@@ -390,7 +438,9 @@ class _HomePageState extends State<HomePage> {
             targetUser.name,
           ),
         ],
+
         isVideoCall: true,
+
         timeoutSeconds: 60,
       );
 
@@ -417,7 +467,10 @@ class _HomePageState extends State<HomePage> {
   // ===========================================================
 
   void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       SnackBar(
         content: Text(message),
       ),
@@ -437,11 +490,14 @@ class _HomePageState extends State<HomePage> {
     final prefs =
         await SharedPreferences.getInstance();
 
-    await prefs.remove('selected_user_id');
+    await prefs.remove(
+      'selected_user_id',
+    );
 
     if (!mounted) return;
 
-    Navigator.of(context).pushAndRemoveUntil(
+    Navigator.of(context)
+        .pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) =>
             const UserSelectionPage(),
@@ -470,18 +526,24 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor:
+            Colors.transparent,
+
         elevation: 0,
+
         title: const Text(
           'Calling App',
           style: TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
+
         actions: [
           IconButton(
             tooltip: 'Switch User',
+
             onPressed: switchUser,
+
             icon: const Icon(
               Icons.switch_account,
             ),
@@ -495,82 +557,122 @@ class _HomePageState extends State<HomePage> {
 
           child: Column(
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(
+                height: 20,
+              ),
 
               // =================================================
-              // CURRENT USER
+              // CURRENT USER CARD
               // =================================================
 
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(25),
 
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                padding:
+                    const EdgeInsets.all(25),
+
+                decoration:
+                    BoxDecoration(
+                  gradient:
+                      const LinearGradient(
                     colors: [
                       Color(0xFF6750A4),
                       Color(0xFF8B6CCF),
                     ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+
+                    begin:
+                        Alignment.topLeft,
+
+                    end:
+                        Alignment.bottomRight,
                   ),
+
                   borderRadius:
-                      BorderRadius.circular(28),
+                      BorderRadius.circular(
+                    28,
+                  ),
                 ),
 
                 child: Column(
                   children: [
                     const CircleAvatar(
                       radius: 42,
+
                       backgroundColor:
                           Colors.white,
+
                       child: Icon(
                         Icons.person,
+
                         size: 48,
+
                         color:
                             Color(0xFF6750A4),
                       ),
                     ),
 
-                    const SizedBox(height: 14),
+                    const SizedBox(
+                      height: 14,
+                    ),
 
                     Text(
                       currentUser.name,
-                      style: const TextStyle(
-                        color: Colors.white,
+
+                      style:
+                          const TextStyle(
+                        color:
+                            Colors.white,
+
                         fontSize: 22,
+
                         fontWeight:
                             FontWeight.bold,
                       ),
                     ),
 
-                    const SizedBox(height: 5),
+                    const SizedBox(
+                      height: 5,
+                    ),
 
                     Text(
                       currentUser.id,
-                      style: const TextStyle(
-                        color: Colors.white70,
+
+                      style:
+                          const TextStyle(
+                        color:
+                            Colors.white70,
+
                         fontSize: 14,
                       ),
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(
+                      height: 12,
+                    ),
 
                     Container(
                       padding:
-                          const EdgeInsets.symmetric(
+                          const EdgeInsets
+                              .symmetric(
                         horizontal: 12,
                         vertical: 6,
                       ),
 
-                      decoration: BoxDecoration(
+                      decoration:
+                          BoxDecoration(
                         color: isReady
                             ? Colors.green
-                                .withOpacity(0.2)
+                                .withOpacity(
+                                0.2,
+                              )
                             : Colors.orange
-                                .withOpacity(0.2),
+                                .withOpacity(
+                                0.2,
+                              ),
+
                         borderRadius:
-                            BorderRadius.circular(
+                            BorderRadius
+                                .circular(
                           20,
                         ),
                       ),
@@ -581,11 +683,15 @@ class _HomePageState extends State<HomePage> {
                             : isReady
                                 ? 'Online'
                                 : 'Offline',
-                        style: TextStyle(
+
+                        style:
+                            TextStyle(
                           color: isReady
                               ? Colors.white
                               : Colors.orangeAccent,
+
                           fontSize: 12,
+
                           fontWeight:
                               FontWeight.bold,
                         ),
@@ -595,18 +701,24 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(
+                height: 30,
+              ),
 
               // =================================================
-              // CONTACT
+              // CONTACT TITLE
               // =================================================
 
               Align(
                 alignment:
                     Alignment.centerLeft,
+
                 child: Text(
                   'Contacts',
-                  style: Theme.of(context)
+
+                  style: Theme.of(
+                    context,
+                  )
                       .textTheme
                       .titleLarge
                       ?.copyWith(
@@ -616,23 +728,43 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(
+                height: 14,
+              ),
+
+              // =================================================
+              // TARGET USER
+              // =================================================
 
               Container(
                 padding:
-                    const EdgeInsets.all(16),
+                    const EdgeInsets.all(
+                  16,
+                ),
 
-                decoration: BoxDecoration(
+                decoration:
+                    BoxDecoration(
                   color: Colors.white,
+
                   borderRadius:
-                      BorderRadius.circular(22),
+                      BorderRadius.circular(
+                    22,
+                  ),
+
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black
-                          .withOpacity(0.05),
+                          .withOpacity(
+                        0.05,
+                      ),
+
                       blurRadius: 15,
+
                       offset:
-                          const Offset(0, 5),
+                          const Offset(
+                        0,
+                        5,
+                      ),
                     ),
                   ],
                 ),
@@ -643,12 +775,19 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         const CircleAvatar(
                           radius: 30,
+
                           backgroundColor:
-                              Color(0xFFE9E1FF),
+                              Color(
+                            0xFFE9E1FF,
+                          ),
+
                           child: Icon(
                             Icons.person,
+
                             color:
-                                Color(0xFF6750A4),
+                                Color(
+                              0xFF6750A4,
+                            ),
                           ),
                         ),
 
@@ -661,14 +800,20 @@ class _HomePageState extends State<HomePage> {
                             crossAxisAlignment:
                                 CrossAxisAlignment
                                     .start,
+
                             children: [
                               Text(
-                                targetUser.name,
+                                targetUser
+                                    .name,
+
                                 style:
                                     const TextStyle(
-                                  fontSize: 17,
+                                  fontSize:
+                                      17,
+
                                   fontWeight:
-                                      FontWeight.bold,
+                                      FontWeight
+                                          .bold,
                                 ),
                               ),
 
@@ -678,11 +823,15 @@ class _HomePageState extends State<HomePage> {
 
                               Text(
                                 targetUser.id,
-                                style: TextStyle(
+
+                                style:
+                                    TextStyle(
                                   color: Colors
                                       .grey
                                       .shade600,
-                                  fontSize: 13,
+
+                                  fontSize:
+                                      13,
                                 ),
                               ),
 
@@ -694,22 +843,29 @@ class _HomePageState extends State<HomePage> {
                                 children: [
                                   Icon(
                                     Icons.circle,
+
                                     size: 9,
+
                                     color: Colors
                                         .grey
                                         .shade500,
                                   ),
+
                                   const SizedBox(
                                     width: 5,
                                   ),
+
                                   Text(
                                     'Available',
+
                                     style:
                                         TextStyle(
                                       color: Colors
                                           .grey
                                           .shade600,
-                                      fontSize: 12,
+
+                                      fontSize:
+                                          12,
                                     ),
                                   ),
                                 ],
@@ -732,31 +888,43 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         Expanded(
                           child:
-                              ElevatedButton.icon(
-                            onPressed: isReady
-                                ? makeAudioCall
-                                : null,
-                            icon: const Icon(
+                              ElevatedButton
+                                  .icon(
+                            onPressed:
+                                isReady
+                                    ? makeAudioCall
+                                    : null,
+
+                            icon:
+                                const Icon(
                               Icons.call,
                             ),
-                            label: const Text(
+
+                            label:
+                                const Text(
                               'Audio Call',
                             ),
+
                             style:
                                 ElevatedButton
                                     .styleFrom(
                               backgroundColor:
                                   Colors.green,
+
                               foregroundColor:
                                   Colors.white,
+
                               disabledBackgroundColor:
-                                  Colors.grey
+                                  Colors
+                                      .grey
                                       .shade300,
+
                               padding:
                                   const EdgeInsets
                                       .symmetric(
                                 vertical: 14,
                               ),
+
                               shape:
                                   RoundedRectangleBorder(
                                 borderRadius:
@@ -775,16 +943,23 @@ class _HomePageState extends State<HomePage> {
 
                         Expanded(
                           child:
-                              ElevatedButton.icon(
-                            onPressed: isReady
-                                ? makeVideoCall
-                                : null,
-                            icon: const Icon(
+                              ElevatedButton
+                                  .icon(
+                            onPressed:
+                                isReady
+                                    ? makeVideoCall
+                                    : null,
+
+                            icon:
+                                const Icon(
                               Icons.videocam,
                             ),
-                            label: const Text(
+
+                            label:
+                                const Text(
                               'Video Call',
                             ),
+
                             style:
                                 ElevatedButton
                                     .styleFrom(
@@ -792,16 +967,21 @@ class _HomePageState extends State<HomePage> {
                                   const Color(
                                 0xFF6750A4,
                               ),
+
                               foregroundColor:
                                   Colors.white,
+
                               disabledBackgroundColor:
-                                  Colors.grey
+                                  Colors
+                                      .grey
                                       .shade300,
+
                               padding:
                                   const EdgeInsets
                                       .symmetric(
                                 vertical: 14,
                               ),
+
                               shape:
                                   RoundedRectangleBorder(
                                 borderRadius:
@@ -827,17 +1007,21 @@ class _HomePageState extends State<HomePage> {
                     : isReady
                         ? '${currentUser.name} is ready for calls'
                         : 'Calling service failed',
+
                 style: TextStyle(
                   color: isLoading
                       ? Colors.orange
                       : isReady
                           ? Colors.green
                           : Colors.red,
+
                   fontSize: 13,
                 ),
               ),
 
-              const SizedBox(height: 15),
+              const SizedBox(
+                height: 15,
+              ),
             ],
           ),
         ),
