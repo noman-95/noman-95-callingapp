@@ -1,0 +1,61 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # zego_zim 2.29.0+1 still contains the removed jcenter()
+      # repository. Patch the downloaded plugin before Gradle starts.
+      - name: Patch Zego ZIM Android Gradle file
+        shell: bash
+        run: |
+          set -e
+          ZIM_DIR="$(find "$HOME/.pub-cache/hosted/pub.dev" -maxdepth 1 -type d -name 'zego_zim-*' | head -n 1)"
+          if [ -z "$ZIM_DIR" ]; then
+            echo "zego_zim package not found"
+            exit 1
+          fi
+          echo "Patching $ZIM_DIR"
+          find "$ZIM_DIR/android" -type f \( -name "*.gradle" -o -name "*.gradle.kts" \) -print0 |
+            xargs -0 -r sed -i 's/^[[:space:]]*jcenter()[[:space:]]*$/        mavenCentral()/g'
+          grep -R "jcenter()" "$ZIM_DIR/android" || true
+
+      - name: Clean
+        run: flutter clean
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: calling-app-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
