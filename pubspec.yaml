@@ -18,11 +18,14 @@ dependencies:
   # ZEGOCLOUD Calling
   zego_uikit_prebuilt_call: 4.24.4
 
-  # ZEGOCLOUD UI Kit
-  zego_uikit: ^2.28.0
+  # ZEGOCLOUD UI
+  zego_uikit: 2.28.0
 
-  # ZEGOCLOUD Signaling / Messaging
-  zego_uikit_signaling_plugin: ^2.8.0
+  # ZEGOCLOUD Signaling
+  zego_uikit_signaling_plugin: 2.8.0
+
+  # ZEGOCLOUD Text Chat (ZIM)
+  zego_zim: 2.29.0+1
 
 dev_dependencies:
   flutter_test:
