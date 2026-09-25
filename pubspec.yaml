@@ -1,31 +1,46 @@
-name: calling_app
-description: "A new Flutter project."
-publish_to: 'none'
+name: Build Calling App APK
 
-version: 1.0.0+1
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
-environment:
-  sdk: ^3.13.3
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-dependencies:
-  flutter:
-    sdk: flutter
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  cupertino_icons: 1.0.9
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-  shared_preferences: ^2.5.3
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
 
-  zego_uikit_prebuilt_call: 4.24.4
+      - name: Flutter version
+        run: flutter --version
 
-  firebase_core: 4.15.0
-  firebase_auth: 6.7.0
-  cloud_firestore: 6.10.0
+      - name: Clean project
+        run: flutter clean
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
+      - name: Get dependencies
+        run: flutter pub get
 
-  flutter_lints: 6.0.0
+      - name: Build APK
+        run: flutter build apk --release --android-skip-build-dependency-validation
 
-flutter:
-  uses-material-design: true
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: calling-app-release
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
