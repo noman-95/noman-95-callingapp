@@ -44,16 +44,17 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("https://storage.googleapis.com/download.flutter.io")
-    }
-}
 
-    repositories {
-        google()
-        mavenCentral()
+        // Flutter engine artifacts
+        maven("https://storage.googleapis.com/download.flutter.io")
     }
 }
 
 rootProject.name = "calling_app"
 
 include(":app")
+
+// Floating module
+if (file("floating").exists()) {
+    include(":floating")
+}
