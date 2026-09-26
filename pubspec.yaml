@@ -1,11 +1,11 @@
 name: calling_app
-description: "A new Flutter project."
+description: "A ZEGOCLOUD calling and chat app."
 publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
-  sdk: '^3.13.0'
+  sdk: ">=3.13.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -14,12 +14,12 @@ dependencies:
   cupertino_icons: 1.0.9
   shared_preferences: ^2.5.3
 
-  # ZEGO CALLING
+  # ZEGOCLOUD Call
   zego_uikit_prebuilt_call: 4.24.4
   zego_uikit_signaling_plugin: ^2.8.20
 
-  # ZEGO TEXT CHAT
-  zego_zim: 2.29.0+1
+  # ZEGOCLOUD Chat
+  zego_zim: ^2.29.0+1
 
 dev_dependencies:
   flutter_test:
