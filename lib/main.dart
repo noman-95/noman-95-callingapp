@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
@@ -7,6 +8,7 @@ import 'package:zego_zim/zego_zim.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  MobileAds.instance.initialize();
   runApp(const CallingApp());
 }
 
@@ -866,6 +868,11 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
 
+      bottomNavigationBar: const SafeArea(
+        top: false,
+        child: AdMobBanner(),
+      ),
+
       body: SafeArea(
         child: Padding(
           padding:
@@ -1338,6 +1345,74 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// =============================================================
+// ADMOB BANNER (HOME PAGE ONLY)
+// =============================================================
+
+class AdMobBanner extends StatefulWidget {
+  const AdMobBanner({super.key});
+
+  @override
+  State<AdMobBanner> createState() => _AdMobBannerState();
+}
+
+class _AdMobBannerState extends State<AdMobBanner> {
+  BannerAd? _bannerAd;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBanner();
+  }
+
+  void _loadBanner() {
+    final banner = BannerAd(
+      adUnitId: 'ca-app-pub-5700287934760796/3704831232',
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          if (!mounted) {
+            ad.dispose();
+            return;
+          }
+          setState(() {
+            _bannerAd = ad as BannerAd;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          debugPrint('AdMob banner failed to load: $error');
+          ad.dispose();
+        },
+      ),
+    );
+
+    banner.load();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final banner = _bannerAd;
+    if (banner == null) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      width: banner.size.width.toDouble(),
+      height: banner.size.height.toDouble(),
+      child: Center(
+        child: AdWidget(ad: banner),
       ),
     );
   }
